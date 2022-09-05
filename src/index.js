@@ -11,14 +11,15 @@ const server = express();
 server.use(cors());
 server.use(express.json());
 
+// db configuration
 dotenv.config();
-
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect(() => {
-  db = mongoClient.db("test");
+  db = mongoClient.db("bate_papo_uol_db");
 });
 
+// validation schemas
 const userSchema = joi.object({
   name: joi.string().min(1).required(),
 });
@@ -29,6 +30,7 @@ const messageSchema = joi.object({
   text: joi.string().required().min(1),
 });
 
+// routes
 server.post("/participants", async (req, res) => {
   const name = sanitizeItems(req.body.name);
 
@@ -38,7 +40,6 @@ server.post("/participants", async (req, res) => {
     });
     if (validation.error) {
       const erros = validation.error.details.map((erro) => erro.message);
-      console.log(erros);
       return res.status(422).send(erros);
     }
 
@@ -269,7 +270,7 @@ function validateLoggedUser() {
     }
   }, 15000);
 }
-//
+
 validateLoggedUser();
 
 server.listen(5000, () => console.log("Server is listening on port 5000"));
