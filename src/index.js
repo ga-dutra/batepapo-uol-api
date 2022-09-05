@@ -4,6 +4,7 @@ import { MongoClient, ObjectId } from "mongodb";
 import dotenv from "dotenv";
 import joi from "joi";
 import dayjs from "dayjs";
+import sanitizeItems from "../services/sanitization.js";
 
 // server configuration
 const server = express();
@@ -29,7 +30,8 @@ const messageSchema = joi.object({
 });
 
 server.post("/participants", async (req, res) => {
-  const { name } = req.body;
+  const name = sanitizeItems(req.body.name);
+
   try {
     const validation = userSchema.validate(req.body, {
       abortEarly: false,
@@ -102,12 +104,12 @@ server.post("/messages", async (req, res) => {
       console.log(erros);
       return res.status(422).send(erros);
     }
-
+    console.log(typeof to, typeof user, typeof text, typeof type);
     const message = {
-      to: to,
-      from: user,
-      text: text,
-      type: type,
+      to: sanitizeItems(to),
+      from: sanitizeItems(user),
+      text: sanitizeItems(text),
+      type: sanitizeItems(type),
       time: dayjs().format("HH:mm:ss"),
     };
 
@@ -200,7 +202,7 @@ server.delete("/messages/:idMessage", async (req, res) => {
 server.put("/messages/:idMessage", async (req, res) => {
   const user = req.headers.user;
   const idMessage = req.params.idMessage;
-  const { text } = req.body;
+  const text = sanitizeItems(req.body.text);
 
   try {
     const existingUser = await db
