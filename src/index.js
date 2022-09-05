@@ -11,7 +11,7 @@ server.use(cors());
 server.use(express.json());
 
 dotenv.config();
-console.log(process.env.MONGO_URI);
+
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect(() => {
@@ -34,7 +34,6 @@ server.post("/participants", async (req, res) => {
     const validation = userSchema.validate(req.body, {
       abortEarly: false,
     });
-    console.log(validation);
     if (validation.error) {
       const erros = validation.error.details.map((erro) => erro.message);
       console.log(erros);
@@ -98,7 +97,6 @@ server.post("/messages", async (req, res) => {
     }
 
     const validation = messageSchema.validate(req.body, { abortEarly: false });
-    console.log(validation);
     if (validation.error) {
       const erros = validation.error.details.map((erro) => erro.message);
       console.log(erros);
@@ -133,12 +131,10 @@ server.get("/messages", async (req, res) => {
     }
 
     const allMessages = await db.collection("messages").find().toArray();
-    console.log(`allMessages: ${JSON.stringify(allMessages)}`);
     const userMessages = allMessages.filter(
       (message) =>
         message.to === "Todos" || message.to === user || message.from === user
     );
-    console.log(`userMessages: ${JSON.stringify(userMessages)}`);
     return res
       .status(200)
       .send(limit ? userMessages.slice(-limit) : userMessages);
@@ -171,6 +167,32 @@ server.post("/status", async (req, res) => {
 
     res.sendStatus(200);
     return;
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+server.delete("/messages/:idMessage", async (req, res) => {
+  const user = req.headers.user;
+  const idMessage = req.params.idMessage;
+  console.log(user, idMessage);
+  // console.log(new ObjectId(idMessage));
+  if (!user || !idMessage) {
+    return res.sendStatus(404);
+  }
+  try {
+    const deletingMessage = await db
+      .collection("messages")
+      .findOne({ _id: ObjectId(idMessage) });
+    console.log(deletingMessage);
+    if (!deletingMessage) {
+      return res.status(404).send("Mensagem com id recebido não existe!");
+    }
+    if (deletingMessage.from !== user) {
+      return res.status(401).send("Usuário não é o dono da mensagem!");
+    }
+
+    db.collection("messages").deleteOne(deletingMessage);
   } catch (error) {
     console.log(error);
   }
