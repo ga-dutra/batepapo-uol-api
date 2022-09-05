@@ -72,7 +72,7 @@ server.post("/participants", async (req, res) => {
 server.get("/participants", async (req, res) => {
   try {
     const participants = await db.collection("participants").find().toArray();
-    res.send(participants);
+    return res.status(200).send(participants);
   } catch (err) {
     console.log(err);
   }
@@ -112,8 +112,7 @@ server.post("/messages", async (req, res) => {
     };
 
     await db.collection("messages").insertOne(message);
-    res.sendStatus(201);
-    return;
+    return res.sendStatus(201);
   } catch (error) {
     console.log(error);
   }
@@ -165,8 +164,7 @@ server.post("/status", async (req, res) => {
       { $set: participant }
     );
 
-    res.sendStatus(200);
-    return;
+    return res.sendStatus(200);
   } catch (error) {
     console.log(error);
   }
@@ -175,16 +173,16 @@ server.post("/status", async (req, res) => {
 server.delete("/messages/:idMessage", async (req, res) => {
   const user = req.headers.user;
   const idMessage = req.params.idMessage;
-  console.log(user, idMessage);
-  // console.log(new ObjectId(idMessage));
+
   if (!user || !idMessage) {
     return res.sendStatus(404);
   }
+
   try {
     const deletingMessage = await db
       .collection("messages")
       .findOne({ _id: ObjectId(idMessage) });
-    console.log(deletingMessage);
+
     if (!deletingMessage) {
       return res.status(404).send("Mensagem com id recebido não existe!");
     }
@@ -192,7 +190,48 @@ server.delete("/messages/:idMessage", async (req, res) => {
       return res.status(401).send("Usuário não é o dono da mensagem!");
     }
 
-    db.collection("messages").deleteOne(deletingMessage);
+    await db.collection("messages").deleteOne(deletingMessage);
+    return res.sendStatus(200);
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+server.put("/messages/:idMessage", async (req, res) => {
+  const user = req.headers.user;
+  const idMessage = req.params.idMessage;
+  const { text } = req.body;
+
+  try {
+    const existingUser = await db
+      .collection("participants")
+      .findOne({ name: user });
+    if (!existingUser) {
+      return res.status(422).send("Usuário não existente!");
+    }
+
+    const validation = messageSchema.validate(req.body, { abortEarly: false });
+    if (validation.error) {
+      const erros = validation.error.details.map((erro) => erro.message);
+      console.log(erros);
+      return res.status(422).send(erros);
+    }
+    const updatingMessage = await db
+      .collection("messages")
+      .findOne({ _id: ObjectId(idMessage) });
+
+    if (!updatingMessage) {
+      return res.status(404).send("Mensagem com id recebido não existe!");
+    }
+    if (updatingMessage.from !== user) {
+      return res.status(401).send("Usuário não é o dono da mensagem!");
+    }
+
+    db.collection("messages").updateOne(
+      { _id: ObjectId(idMessage) },
+      { $set: { text: text } }
+    );
+    return res.sendStatus(200);
   } catch (error) {
     console.log(error);
   }
